@@ -48,6 +48,12 @@ namespace NonBlockingTests
 
             WriteBenchRndNB();
             WriteBenchRndCD();
+
+            //并发性能
+            GetOrAddFuncBenchConcurrentNB();
+            GetOrAddFuncBenchConcurrentCD();
+
+            System.Console.ReadLine();
         }
 
         private static void EmptyAction()
@@ -257,6 +263,32 @@ namespace NonBlockingTests
             RunBench(benchmarkName, act);
         }
 
+        private static void GetOrAddFuncBenchConcurrentNB()
+        {
+            var dict = new NonBlocking.ConcurrentDictionary<string, string>();
+            var cnt = new Counter64();
+
+            var benchmarkName = "======== Concurrency GetOrAdd Func NonBlocking 1M Ops/sec:";
+
+            Action<int, int> act = (i, threadBias) =>
+            {
+                dict.GetOrAdd("Test", (_) => "qq");
+
+                // after making about 1000000 adds, start with a new table
+                var c = cnt;
+                c.Increment();
+                if (Every8K(i) && c.Value > 1000000)
+                {
+                    if (Interlocked.CompareExchange(ref cnt, new Counter64(), c) == c)
+                    {
+                        dict = new NonBlocking.ConcurrentDictionary<string, string>();
+                    }
+                }
+            };
+
+            RunBenchConcurrent(benchmarkName, act);
+        }
+
         private static void GetOrAddFuncBenchRndCD()
         {
             var dict = new Concurrent.ConcurrentDictionary<int, string>();
@@ -283,6 +315,32 @@ namespace NonBlockingTests
             };
 
             RunBench(benchmarkName, act);
+        }
+
+        private static void GetOrAddFuncBenchConcurrentCD()
+        {
+            var dict = new Concurrent.ConcurrentDictionary<string, string>();
+            var cnt = new Counter64();
+
+            var benchmarkName = "======== Concurrency GetOrAdd Func Concurrent 1M Ops/sec:";
+
+            Action<int, int> act = (i, threadBias) =>
+            {
+                dict.GetOrAdd("Test", (_) => "qq");
+
+                // after making about 1000000 adds, start with a new table
+                var c = cnt;
+                c.Increment();
+                if (Every8K(i) && c.Value > 1000000)
+                {
+                    if (Interlocked.CompareExchange(ref cnt, new Counter64(), c) == c)
+                    {
+                        dict = new Concurrent.ConcurrentDictionary<string, string>();
+                    }
+                }
+            };
+
+            RunBenchConcurrent(benchmarkName, act);
         }
 
         private static void WriteBenchRndNB()
@@ -345,7 +403,7 @@ namespace NonBlockingTests
 
             for (int i = 0; i < workers.Length; i++)
             {
-                workers[i] = Task.Factory.StartNew(body, TaskCreationOptions.LongRunning);
+                workers[i] = Task.Factory.StartNew(body, TaskCreationOptions.None);
             }
 
             stop_time = sw.ElapsedMilliseconds + time;
@@ -383,6 +441,38 @@ namespace NonBlockingTests
                     System.Console.Write("{0:f4} ", MOps);
                 }
             }
+            System.Console.WriteLine();
+            GC.Collect();
+            GC.Collect();
+        }
+
+        private static void RunBenchConcurrent(string benchmarkName, Action<int, int> action)
+        {
+            System.Console.WriteLine(benchmarkName);
+            var threadCnt = 10000;
+            
+            var MOps = RunBenchmark(action, threadCnt, 3000) / 3000000.0;
+            if (MOps > 1000)
+            {
+                System.Console.Write("{0:f0} ", MOps);
+            }
+            else if (MOps > 100)
+            {
+                System.Console.Write("{0:f1} ", MOps);
+            }
+            else if (MOps > 10)
+            {
+                System.Console.Write("{0:f2} ", MOps);
+            }
+            else if (MOps > 1)
+            {
+                System.Console.Write("{0:f3} ", MOps);
+            }
+            else
+            {
+                System.Console.Write("{0:f4} ", MOps);
+            }
+           
             System.Console.WriteLine();
             GC.Collect();
             GC.Collect();

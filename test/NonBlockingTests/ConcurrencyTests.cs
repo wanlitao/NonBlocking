@@ -20,7 +20,7 @@ namespace NonBlockingTests
                 Func<int, Task> task = async (j) =>
                 {
                     await Task.Yield();
-                    var value = nonBlocking_dict.GetOrAdd("Test", _value);
+                    var value = nonBlocking_dict.GetOrAdd("Test", (key) => _value);                    
                     Assert.Equal(_value, value);
                 };
 
@@ -42,7 +42,7 @@ namespace NonBlockingTests
                 Func<int, Task> task = async (j) =>
                 {
                     await Task.Yield();
-                    var value = dict.GetOrAdd("Test", _value);
+                    var value = dict.GetOrAdd("Test", (key) => _value);
                     Assert.Equal(_value, value);
                 };
 
